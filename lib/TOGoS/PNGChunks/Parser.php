@@ -2,6 +2,8 @@
 
 class TOGoS_PNGChunks_Parser
 {
+	const OPT_VALIDATE = 'validate';
+	
 	/**
 	 * @param callable $chunkCallback will be called with array(
 	 *   'typeBytes' => 4-byte string representing type,
@@ -10,8 +12,10 @@ class TOGoS_PNGChunks_Parser
 	 * )
 	 */
 	protected $chunkCallback;
-	public function __construct( $chunkCallback ) {
+	protected $validating;
+	public function __construct( $chunkCallback, array $options=array() ) {
 		$this->chunkCallback = $chunkCallback;
+		$this->validating = !empty($options[self::OPT_VALIDATE]);
 	}
 	
 	protected $buffer = '';
@@ -29,6 +33,12 @@ class TOGoS_PNGChunks_Parser
 		switch( $this->state ) {
 		case self::STATE_BEGIN:
 			if( strlen($this->buffer) >= 8 ) {
+				if( $this->validating ) {
+					$header = substr($this->buffer, 0, 8);
+					if( $header !== TOGoS_PNGChunks_Util::PNG_HEADER ) {
+						throw new TOGoS_PNGChunks_MalformedDataException("Bad PNG header.");
+					}
+				}
 				$this->buffer = substr($this->buffer, 8);
 				$this->state = self::STATE_HEADER_READ;
 				return true;
@@ -43,11 +53,15 @@ class TOGoS_PNGChunks_Parser
 					$typeBytes = substr($this->buffer,4,4);
 					$data = substr($this->buffer, 8, $length);
 					$crcBytes = substr($this->buffer, $chunkLen-4, 4);
-					call_user_func($this->chunkCallback, array(
+					$chunkInfo = array(
 						'data' => $data,
 						'typeBytes' => $typeBytes,
 						'crcBytes' => $crcBytes
-					));
+					);
+					if( $this->validating ) {
+						TOGoS_PNGChunks_Util::verifyChunkCrc($chunkInfo);
+					}
+					call_user_func($this->chunkCallback, $chunkInfo);
 					$this->buffer = substr($this->buffer,$chunkLen);
 					return true;
 				}
@@ -60,7 +74,7 @@ class TOGoS_PNGChunks_Parser
 	
 	public function end() {
 		if( strlen($this->buffer) != 0 ) {
-			throw new Exception(strlen($this->buffer)." bytes of extra data at end of PNG stream!");
+			throw new TOGoS_PNGChunks_MalformedDataException(strlen($this->buffer)." bytes of extra data at end of PNG stream!");
 		}
 	}
 }
