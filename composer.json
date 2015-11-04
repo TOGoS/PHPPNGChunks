@@ -1,0 +1,17 @@
+{
+	"name": "togos/png-chunks",
+	"description": "PNG chunk stream reader/writer",
+	"license": "MIT",
+	"require": {
+		"php": ">=5.2"
+	},
+	"require-dev": {
+		"phpunit/phpunit": "^3.7",
+		"earthit/php-common": "^1.1.0"
+	},
+	"autoload": {
+		"psr-0": {
+			"TOGoS_PNG": "lib/"
+		}
+	}
+}
